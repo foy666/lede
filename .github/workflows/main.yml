@@ -1,76 +1,124 @@
-# 
-# <https://github.com/KFERMercer/OpenWrt-CI>
-#
-# Copyright (C) 2019 P3TERX
-#
-# Copyright (C) 2020 KFERMercer
-#
-name: OpenWrt-CI
+name: OpenWrt-ESXi8-Builder
 
 on:
   schedule:
     - cron: 0 20 * * *
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-
   build_openwrt:
-
-    name: Build OpenWrt Firmware
-
+    name: Build OpenWrt for ESXi 8 (x86_64)
     runs-on: ubuntu-22.04
+    timeout-minutes: 180
 
     steps:
       - name: Space cleanup and Initialization environment
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
-          docker rmi `docker images -q`
-          sudo -E rm -rf /usr/share/dotnet /etc/mysql /etc/php /etc/apt/sources.list.d /usr/local/lib/android
-          sudo -E apt-mark hold grub-efi-amd64-signed
-          sudo -E apt update
-          sudo -E apt -y purge azure-cli* docker* ghc* zulu* llvm* firefox google* dotnet* powershell* openjdk* mysql* php* mongodb* dotnet* snap*
-          sudo -E apt -y full-upgrade
-          sudo -E apt -y install ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential bzip2 ccache clang cmake cpio curl device-tree-compiler flex gawk gcc-multilib g++-multilib gettext genisoimage git gperf haveged help2man intltool libc6-dev-i386 libelf-dev libfuse-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev libpython3-dev libreadline-dev libssl-dev libtool llvm lrzsz msmtp ninja-build p7zip p7zip-full patch pkgconf python3 python3-pyelftools python3-setuptools qemu-utils rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev
-          sudo -E systemctl daemon-reload
-          sudo -E apt -y autoremove --purge
-          sudo -E apt clean
-          sudo -E timedatectl set-timezone "Asia/Shanghai"
+          sudo docker rmi $(docker images -q) || true
+          sudo rm -rf /usr/share/dotnet /etc/mysql /etc/php /etc/apt/sources.list.d /usr/local/lib/android
+          sudo apt-mark hold grub-efi-amd64-signed
+          sudo apt update
+          sudo apt -y purge azure-cli* docker* ghc* zulu* llvm* firefox google* dotnet* powershell* openjdk* mysql* php* mongodb* dotnet* snap*
+          sudo apt -y full-upgrade
+          sudo apt -y install ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
+            bzip2 ccache clang cmake cpio curl device-tree-compiler flex gawk gcc-multilib g++-multilib \
+            gettext genisoimage git gperf haveged help2man intltool libc6-dev-i386 libelf-dev libfuse-dev \
+            libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev \
+            libpython3-dev libreadline-dev libssl-dev libtool llvm lrzsz msmtp ninja-build p7zip p7zip-full \
+            patch pkgconf python3 python3-pyelftools python3-setuptools qemu-utils rsync scons squashfs-tools \
+            subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev jq
+          sudo systemctl daemon-reload
+          sudo apt -y autoremove --purge
+          sudo apt clean
+          sudo timedatectl set-timezone "Asia/Shanghai"
 
       - name: Checkout OpenWrt
         uses: actions/checkout@v4
+        with:
+          repository: openwrt/openwrt
+          ref: master
 
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
         with:
-          # this might remove tools that are actually needed,
-          # if set to "true" but frees about 6 GB
           tool-cache: true
-          # all of these default to true, but feel free to set to
-          # "false" if necessary for your workflow
           android: true
           dotnet: true
           haskell: true
           large-packages: true
           swap-storage: true
 
-      - name: Update feeds
+      - name: Add custom feeds and packages
         run: |
-          sed -i 's/#src-git helloworld/src-git helloworld/g' ./feeds.conf.default
+          # Add custom feeds
+          echo 'src-git helloworld https://github.com/fw876/helloworld.git' >> feeds.conf.default
+          echo 'src-git kms https://github.com/kkkgo/vlmcsd.git' >> feeds.conf.default
+          
+          # Update feeds
           ./scripts/feeds update -a
           ./scripts/feeds install -a
+          
+          # Install required packages
+          ./scripts/feeds install -a -p helloworld
+          ./scripts/feeds install -a -p kms
+
+      - name: Apply optimizations and configurations
+        run: |
+          # Clone additional packages and patches
+          git clone https://github.com/gSpotx2f/igc-intel.git package/igc-intel
+          
+          # Apply performance optimizations
+          sed -i 's/Os/O3/g' include/target.mk
+          sed -i 's/-pipe/-pipe -march=native -mtune=native/g' include/target.mk
+          
+          # Enable i225-v driver
+          echo "CONFIG_PACKAGE_kmod-igc=y" >> .config
+          echo "CONFIG_PACKAGE_kmod-igc-intel=y" >> .config
 
       - name: Generate configuration file
-        run: make defconfig
+        run: |
+          make defconfig
+          # Enable required packages
+          echo "CONFIG_PACKAGE_luci-app-ssr-plus=y" >> .config
+          echo "CONFIG_PACKAGE_luci-i18n-ssr-plus-zh-cn=y" >> .config
+          echo "CONFIG_PACKAGE_vlmcsd=y" >> .config
+          echo "CONFIG_PACKAGE_luci-app-vlmcsd=y" >> .config
+          echo "CONFIG_PACKAGE_luci-i18n-vlmcsd-zh-cn=y" >> .config
+          echo "CONFIG_PACKAGE_tcpdump=y" >> .config
+          echo "CONFIG_PACKAGE_htop=y" >> .config
+          echo "CONFIG_PACKAGE_ethtool=y" >> .config
+          echo "CONFIG_TARGET_IMAGES_GZIP=y" >> .config
+          echo "CONFIG_TARGET_ROOTFS_EXT4FS=y" >> .config
+          echo "CONFIG_TARGET_ROOTFS_PARTSIZE=512" >> .config
+          echo "CONFIG_KERNEL_IO_STRICT_DEVMEM=n" >> .config
+          
+          # Enable ESXi specific optimizations
+          echo "CONFIG_KERNEL_VIRTIO=y" >> .config
+          echo "CONFIG_KERNEL_VIRTIO_NET=y" >> .config
+          echo "CONFIG_KERNEL_VIRTIO_PCI=y" >> .config
+          echo "CONFIG_KERNEL_VIRTIO_BLK=y" >> .config
+          echo "CONFIG_KERNEL_VIRTIO_CONSOLE=y" >> .config
+          echo "CONFIG_KERNEL_VIRTIO_INPUT=y" >> .config
+          echo "CONFIG_KERNEL_VIRTIO_MMIO=y" >> .config
+          
+          # Enable performance features
+          echo "CONFIG_KERNEL_PERF_EVENTS=y" >> .config
+          echo "CONFIG_KERNEL_HIGH_RES_TIMERS=y" >> .config
+          echo "CONFIG_PACKAGE_irqbalance=y" >> .config
+          
+          make defconfig
 
       - name: Download packages
-        run: make download -j16
+        run: make download -j$(nproc) || make download -j1 V=s
 
       - name: Compile firmware
         run: |
-          make -j$(nproc) || make -j1 V=s
+          make -j$(($(nproc) + 1)) || make -j1 V=s
           echo "======================="
           echo "Space usage:"
           echo "======================="
@@ -87,6 +135,11 @@ jobs:
           rm -rf $(find ./bin/targets/ -type d -name "packages")
           cp -rf $(find ./bin/packages/ -type f -name "*.ipk") ./artifact/package/
           cp -rf $(find ./bin/targets/ -type f -name "*.buildinfo" -o -name "*.manifest") ./artifact/buildinfo/
+          # Rename the firmware for ESXi
+          for file in $(find ./bin/targets/ -name "*combined-ext4.img.gz"); do
+            new_name=$(echo "$file" | sed 's/combined-ext4\.img\.gz/esxi8-optimized\.img\.gz/')
+            cp "$file" "$new_name"
+          done
 
       - name: Upload buildinfo
         uses: actions/upload-artifact@v4
@@ -103,5 +156,5 @@ jobs:
       - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
-          name: OpenWrt_firmware
+          name: OpenWrt_ESXi8_Firmware
           path: ./bin/targets/
