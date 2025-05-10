@@ -69,16 +69,16 @@ jobs:
 
       - name: Apply optimizations and configurations
         run: |
-          # Clone additional packages and patches
-          git clone https://github.com/gSpotx2f/igc-intel.git package/igc-intel
-          
-          # Apply performance optimizations
-          sed -i 's/Os/O3/g' include/target.mk
-          sed -i 's/-pipe/-pipe -march=native -mtune=native/g' include/target.mk
-          
-          # Enable i225-v driver
-          echo "CONFIG_PACKAGE_kmod-igc=y" >> .config
-          echo "CONFIG_PACKAGE_kmod-igc-intel=y" >> .config
+         # 性能优化
+         sed -i 's/Os/O3/g' include/target.mk
+         sed -i 's/-pipe/-pipe -march=native -mtune=native/g' include/target.mk
+         
+         # 启用 i225-v 驱动和优化
+         echo "CONFIG_PACKAGE_kmod-igc=y" >> .config
+         echo "CONFIG_IGC_LRO=y" >> .config
+         echo "CONFIG_IGC_WOL=y" >> .config
+         echo "CONFIG_IGC_HWMON=y" >> .config
+         echo "CONFIG_IGC_DISABLE_PACKET_SPLIT=n" >> .config
 
       - name: Generate configuration file
         run: |
