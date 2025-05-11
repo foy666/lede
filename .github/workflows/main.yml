@@ -38,11 +38,38 @@ jobs:
             libpython3-dev libreadline-dev libssl-dev libtool llvm lrzsz msmtp ninja-build p7zip p7zip-full \
             patch pkgconf python3 python3-pyelftools python3-setuptools qemu-utils rsync scons squashfs-tools \
             subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev jq
+
+            # 增加这些关键依赖
+          sudo apt-get -y install \
+            libgmp-dev \
+            libmpfr-dev \
+            libmpc-dev \
+            zlib1g-dev \
+            libisl-dev \
+            binutils-dev \
+            libc6-dev-i386 \
+            gcc-multilib \
+            g++-multilib
+            
+          # 确保基础编译器正常工作
+          sudo apt-get -y install build-essential ninja-build cmake
           
           sudo systemctl daemon-reload
           sudo apt -y autoremove --purge || true
           sudo apt clean || true
           sudo timedatectl set-timezone "Asia/Shanghai" || true
+
+      - name: Set up build environment
+        run: |
+          # 设置更安全的编译参数
+          echo "CONFIG_DEVEL=y" >> .config
+          echo "CONFIG_TOOLCHAINOPTS=y" >> .config
+          echo "CONFIG_GCC_USE_GRAPHITE=n" >> .config
+          echo "CONFIG_GCC_USE_VERSION_14=y" >> .config
+          echo "CONFIG_GCC_DEFAULT_PIE=n" >> .config
+          
+          # 对于aarch64架构特别优化
+          echo "CONFIG_TARGET_OPTIMIZATION='-O3 -pipe -mcpu=cortex-a53 -mtune=cortex-a53'" >> .config
 
       - name: Checkout OpenWrt
         uses: actions/checkout@v4
@@ -125,6 +152,9 @@ jobs:
 
       - name: Compile firmware
         run: |
+          # 先单独编译工具链
+          make toolchain/install -j$(nproc) V=s || make toolchain/install -j1 V=s
+          
           make -j$(($(nproc) + 1)) || make -j1 V=s
           echo "======================="
           echo "Space usage:"
