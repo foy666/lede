@@ -22,7 +22,6 @@ env:
   FEEDS_CONF: feeds.conf.default
   CONFIG_FILE: .config
   BUILD_THREADS: 16
-  OPENCLASH_VERSION: 'v0.45.106-beta'  # 将自动更新获取最新版
 
 jobs:
   setup-environment:
@@ -44,7 +43,12 @@ jobs:
       - name: Get latest OpenClash version
         id: get-openclash-version
         run: |
-          LATEST_VERSION=$(curl -s https://api.github.com/repos/vernesong/OpenClash/releases/latest | jq -r .tag_name)
+          # 使用更稳定的API查询方式获取最新版本
+          LATEST_VERSION=$(curl -s https://api.github.com/repos/vernesong/OpenClash/releases/latest | jq -r '.tag_name // "v0.45.106-beta"')
+          if [ "$LATEST_VERSION" = "null" ] || [ -z "$LATEST_VERSION" ]; then
+            echo "警告: 无法从API获取最新版本，使用默认版本 v0.45.106-beta"
+            LATEST_VERSION="v0.45.106-beta"
+          fi
           echo "version=$LATEST_VERSION" >> $GITHUB_OUTPUT
           echo "Using OpenClash version: $LATEST_VERSION"
 
@@ -82,7 +86,6 @@ jobs:
         target: [x86/64]
     env:
       BUILD_DIR: ${{ github.workspace }}/build
-      OPENCLASH_VERSION: ${{ needs.setup-environment.outputs.openclash_version }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -101,18 +104,39 @@ jobs:
           cd immortalwrt-source
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-          # 安装OpenClash依赖:cite[6]
+          # 安装OpenClash依赖
           ./scripts/feeds install coreutils-nohup bash iptables dnsmasq-full curl ca-certificates ipset ip-full \
             iptables-mod-tproxy iptables-mod-extra libcap libcap-bin ruby ruby-yaml kmod-tun kmod-inet-diag
 
       - name: Download and prepare OpenClash
         run: |
           cd immortalwrt-source
-          OPENCLASH_URL="https://github.com/vernesong/OpenClash/releases/download/$OPENCLASH_VERSION/luci-app-openclash_${OPENCLASH_VERSION}_all.ipk"
+          OPENCLASH_VERSION="${{ needs.setup-environment.outputs.openclash_version }}"
+          echo "使用OpenClash版本: $OPENCLASH_VERSION"
+          
+          # 构建正确的下载URL
+          OPENCLASH_URL="https://github.com/vernesong/OpenClash/releases/download/${OPENCLASH_VERSION}/luci-app-openclash_${OPENCLASH_VERSION}_all.ipk"
+          echo "下载URL: $OPENCLASH_URL"
+          
+          # 创建package目录
           mkdir -p package/openclash
-          wget $OPENCLASH_URL -O package/openclash/openclash.ipk
-          # 添加OpenClash到编译配置
-          echo "include package/openclash/*.mk" >> feeds.conf.default
+          
+          # 下载并检查文件
+          if wget --spider "$OPENCLASH_URL" 2>/dev/null; then
+            echo "文件存在，开始下载..."
+            wget -q --timeout=30 --tries=3 "$OPENCLASH_URL" -O package/openclash/openclash.ipk
+            if [ $? -eq 0 ] && [ -s "package/openclash/openclash.ipk" ]; then
+              echo "下载成功"
+              # 添加OpenClash到编译配置
+              echo "src-git openclash https://github.com/vernesong/OpenClash.git" >> feeds.conf.default
+            else
+              echo "警告: 下载失败，将从源码编译OpenClash"
+              git clone https://github.com/vernesong/OpenClash.git package/openclash
+            fi
+          else
+            echo "警告: IPK文件不存在，将从源码编译OpenClash"
+            git clone https://github.com/vernesong/OpenClash.git package/openclash
+          fi
 
       - name: Configure for x86/ESXi with OpenClash
         run: |
@@ -122,7 +146,7 @@ jobs:
           CONFIG_TARGET_x86_64=y
           CONFIG_TARGET_x86_64_Generic=y
           
-          # OpenClash配置:cite[1]
+          # OpenClash配置
           CONFIG_PACKAGE_luci-app-openclash=y
           CONFIG_PACKAGE_coreutils-nohup=y
           CONFIG_PACKAGE_bash=y
@@ -258,7 +282,7 @@ jobs:
           sha256sum * > sha256sums.txt
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3  # 使用v3版本避免下载问题:cite[2]
         with:
           name: immortalwrt-x86-esxi-openclash-${{ needs.setup-environment.outputs.build_id }}
           path: immortalwrt-source/bin/targets/x86/64/artifacts/*
@@ -269,7 +293,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3  # 使用v3版本避免下载问题:cite[2]
         with:
           name: immortalwrt-x86-esxi-openclash-${{ needs.setup-environment.outputs.build_id }}
 
@@ -292,7 +316,7 @@ jobs:
           
           ## Included Features:
           - ESXi optimized kernel
-          - OpenClash pre-installed (最新版)
+          - OpenClash pre-installed
           - VMXNET3 driver support
           - Multiple NIC drivers for passthrough
           - CPU frequency scaling
@@ -311,14 +335,14 @@ jobs:
           - BBR congestion control
           - Hardware acceleration support
           
-          ## OpenClash Information:cite[1]:
+          ## OpenClash Information:
           - Default control panel: Yacd (访问地址: http://路由器IP:9090)
           - Default password: 123456
-          - Recommended use Fake-IP mode for better performance:cite[3]
+          - Recommended use Fake-IP mode for better performance:cite[7]:cite[10]
           EOF
 
       - name: Upload build report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: build-report-${{ needs.setup-environment.outputs.build_id }}
           path: build-report.md
@@ -329,7 +353,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         with:
           path: artifacts
 
@@ -343,13 +367,13 @@ jobs:
             Includes OpenClash ${{ needs.setup-environment.outputs.openclash_version }} pre-installed
             Includes performance optimizations for virtualization
             
-            ## OpenClash Default Settings:cite[1]:
+            ## OpenClash Default Settings:
             - Control Panel: Yacd (http://路由器IP:9090)
             - Default Password: 123456
-            - Recommended to use Fake-IP mode:cite[3]
+            - Recommended to use Fake-IP mode:cite[7]:cite[10]
             
             ## Important Notes:
-            - For best performance, use Fake-IP mode in OpenClash:cite[3]
+            - For best performance, use Fake-IP mode in OpenClash
             - Change default passwords after first login
             - Configure OpenClash subscription according to your provider
           files: artifacts/**/*
