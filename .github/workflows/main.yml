@@ -186,111 +186,111 @@ jobs:
           
           # 创建基础配置
           cat > .config << 'EOF'
-CONFIG_TARGET_x86=y
-CONFIG_TARGET_x86_64=y
-CONFIG_TARGET_x86_64_Generic=y
-CONFIG_TARGET_ROOTFS_EXT4FS=y
-CONFIG_TARGET_ROOTFS_SQUASHFS=y
-CONFIG_VMDK_IMAGES=y
-CONFIG_GRUB_IMAGES=y
-CONFIG_GRUB_EFI_IMAGES=y
-
-# KMS服务器配置
-CONFIG_PACKAGE_vlmcsd=y
-CONFIG_PACKAGE_luci-app-vlmcsd=y
-CONFIG_PACKAGE_luci-i18n-vlmcsd-zh-cn=y
-CONFIG_VLMCSD_COMPRESS_UPX=y
-CONFIG_VLMCSD_STANDALONE=y
-CONFIG_VLMCSD_IPv6=y
-
-# 处理器优化
-CONFIG_SMP=y
-CONFIG_NR_CPUS=256
-CONFIG_SCHED_SMT=y
-CONFIG_SCHED_MC=y
-CONFIG_SCHED_MC_PRIO=y
-CONFIG_X86_INTEL_PSTATE=y
-CONFIG_X86_AMD_PSTATE=y
-CONFIG_CPU_FREQ=y
-CONFIG_X86_MSR=y
-CONFIG_X86_CPUID=y
-CONFIG_NUMA=y
-CONFIG_NEED_MULTIPLE_NODES=y
-
-# 内存管理
-CONFIG_HIGHMEM64G=y
-CONFIG_HUGETLBFS=y
-CONFIG_TRANSPARENT_HUGEPAGE=y
-CONFIG_COMPACTION=y
-
-# 网络性能优化
-CONFIG_DEFAULT_BBR=y
-CONFIG_TCP_CONG_BBR=y
-CONFIG_TCP_CONG_BBR2=y
-CONFIG_IP_ROUTE_MULTIPATH=y
-CONFIG_NETWORK_PHY_TIMESTAMPING=y
-
-# DNS优化
-CONFIG_PACKAGE_dnsmasq-full=y
-CONFIG_PACKAGE_dnsmasq_full_dhcp=y
-CONFIG_PACKAGE_dnsmasq_full_ipset=y
-CONFIG_PACKAGE_dns-over-https=y
-CONFIG_PACKAGE_unbound=y
-
-# 虚拟化驱动
-CONFIG_PACKAGE_kmod-vmxnet3=y
-CONFIG_PACKAGE_kmod-vmware-pvscsi=y
-CONFIG_PACKAGE_kmod-virtio=y
-CONFIG_PACKAGE_kmod-virtio-net=y
-CONFIG_PACKAGE_kmod-virtio-blk=y
-CONFIG_PACKAGE_kmod-ixgbevf=y
-
-# 网卡驱动
-CONFIG_PACKAGE_kmod-e1000e=y
-CONFIG_PACKAGE_kmod-igb=y
-CONFIG_PACKAGE_kmod-ixgbe=y
-CONFIG_PACKAGE_kmod-r8169=y
-
-# 存储优化
-CONFIG_PACKAGE_kmod-ata-ahci=y
-CONFIG_PACKAGE_kmod-scsi-core=y
-CONFIG_PACKAGE_kmod-fs-ext4=y
-CONFIG_PACKAGE_kmod-fs-ntfs=y
-
-# OpenClash配置
-CONFIG_PACKAGE_luci-app-openclash=y
-CONFIG_PACKAGE_coreutils-nohup=y
-CONFIG_PACKAGE_bash=y
-CONFIG_PACKAGE_iptables=y
-CONFIG_PACKAGE_dnsmasq-full=y
-CONFIG_PACKAGE_curl=y
-CONFIG_PACKAGE_ca-certificates=y
-CONFIG_PACKAGE_ipset=y
-CONFIG_PACKAGE_ip-full=y
-CONFIG_PACKAGE_iptables-mod-tproxy=y
-CONFIG_PACKAGE_libcap=y
-CONFIG_PACKAGE_libcap-bin=y
-CONFIG_PACKAGE_kmod-tun=y
-
-# 监控工具
-CONFIG_PACKAGE_htop=y
-CONFIG_PACKAGE_iperf3=y
-CONFIG_PACKAGE_ethtool=y
-CONFIG_PACKAGE_tcpdump=y
-
-# 系统工具
-CONFIG_PACKAGE_fdisk=y
-CONFIG_PACKAGE_lsblk=y
-CONFIG_PACKAGE_blkid=y
-CONFIG_PACKAGE_e2fsprogs=y
-
-# 性能调优
-CONFIG_KERNEL_HZ=1000
-CONFIG_KERNEL_NO_HZ_FULL=y
-CONFIG_KERNEL_PREEMPT=y
-CONFIG_DEBUG_INFO=n
-CONFIG_DEBUG_KERNEL=n
-EOF
+          CONFIG_TARGET_x86=y
+          CONFIG_TARGET_x86_64=y
+          CONFIG_TARGET_x86_64_Generic=y
+          CONFIG_TARGET_ROOTFS_EXT4FS=y
+          CONFIG_TARGET_ROOTFS_SQUASHFS=y
+          CONFIG_VMDK_IMAGES=y
+          CONFIG_GRUB_IMAGES=y
+          CONFIG_GRUB_EFI_IMAGES=y
+          
+          # KMS服务器配置
+          CONFIG_PACKAGE_vlmcsd=y
+          CONFIG_PACKAGE_luci-app-vlmcsd=y
+          CONFIG_PACKAGE_luci-i18n-vlmcsd-zh-cn=y
+          CONFIG_VLMCSD_COMPRESS_UPX=y
+          CONFIG_VLMCSD_STANDALONE=y
+          CONFIG_VLMCSD_IPv6=y
+          
+          # 处理器优化
+          CONFIG_SMP=y
+          CONFIG_NR_CPUS=256
+          CONFIG_SCHED_SMT=y
+          CONFIG_SCHED_MC=y
+          CONFIG_SCHED_MC_PRIO=y
+          CONFIG_X86_INTEL_PSTATE=y
+          CONFIG_X86_AMD_PSTATE=y
+          CONFIG_CPU_FREQ=y
+          CONFIG_X86_MSR=y
+          CONFIG_X86_CPUID=y
+          CONFIG_NUMA=y
+          CONFIG_NEED_MULTIPLE_NODES=y
+          
+          # 内存管理
+          CONFIG_HIGHMEM64G=y
+          CONFIG_HUGETLBFS=y
+          CONFIG_TRANSPARENT_HUGEPAGE=y
+          CONFIG_COMPACTION=y
+          
+          # 网络性能优化
+          CONFIG_DEFAULT_BBR=y
+          CONFIG_TCP_CONG_BBR=y
+          CONFIG_TCP_CONG_BBR2=y
+          CONFIG_IP_ROUTE_MULTIPATH=y
+          CONFIG_NETWORK_PHY_TIMESTAMPING=y
+          
+          # DNS优化
+          CONFIG_PACKAGE_dnsmasq-full=y
+          CONFIG_PACKAGE_dnsmasq_full_dhcp=y
+          CONFIG_PACKAGE_dnsmasq_full_ipset=y
+          CONFIG_PACKAGE_dns-over-https=y
+          CONFIG_PACKAGE_unbound=y
+          
+          # 虚拟化驱动
+          CONFIG_PACKAGE_kmod-vmxnet3=y
+          CONFIG_PACKAGE_kmod-vmware-pvscsi=y
+          CONFIG_PACKAGE_kmod-virtio=y
+          CONFIG_PACKAGE_kmod-virtio-net=y
+          CONFIG_PACKAGE_kmod-virtio-blk=y
+          CONFIG_PACKAGE_kmod-ixgbevf=y
+          
+          # 网卡驱动
+          CONFIG_PACKAGE_kmod-e1000e=y
+          CONFIG_PACKAGE_kmod-igb=y
+          CONFIG_PACKAGE_kmod-ixgbe=y
+          CONFIG_PACKAGE_kmod-r8169=y
+          
+          # 存储优化
+          CONFIG_PACKAGE_kmod-ata-ahci=y
+          CONFIG_PACKAGE_kmod-scsi-core=y
+          CONFIG_PACKAGE_kmod-fs-ext4=y
+          CONFIG_PACKAGE_kmod-fs-ntfs=y
+          
+          # OpenClash配置
+          CONFIG_PACKAGE_luci-app-openclash=y
+          CONFIG_PACKAGE_coreutils-nohup=y
+          CONFIG_PACKAGE_bash=y
+          CONFIG_PACKAGE_iptables=y
+          CONFIG_PACKAGE_dnsmasq-full=y
+          CONFIG_PACKAGE_curl=y
+          CONFIG_PACKAGE_ca-certificates=y
+          CONFIG_PACKAGE_ipset=y
+          CONFIG_PACKAGE_ip-full=y
+          CONFIG_PACKAGE_iptables-mod-tproxy=y
+          CONFIG_PACKAGE_libcap=y
+          CONFIG_PACKAGE_libcap-bin=y
+          CONFIG_PACKAGE_kmod-tun=y
+          
+          # 监控工具
+          CONFIG_PACKAGE_htop=y
+          CONFIG_PACKAGE_iperf3=y
+          CONFIG_PACKAGE_ethtool=y
+          CONFIG_PACKAGE_tcpdump=y
+          
+          # 系统工具
+          CONFIG_PACKAGE_fdisk=y
+          CONFIG_PACKAGE_lsblk=y
+          CONFIG_PACKAGE_blkid=y
+          CONFIG_PACKAGE_e2fsprogs=y
+          
+          # 性能调优
+          CONFIG_KERNEL_HZ=1000
+          CONFIG_KERNEL_NO_HZ_FULL=y
+          CONFIG_KERNEL_PREEMPT=y
+          CONFIG_DEBUG_INFO=n
+          CONFIG_DEBUG_KERNEL=n
+          EOF
           
           # 根据CPU优化级别调整配置
           if [ "$CPU_OPTIMIZATION" = "performance" ]; then
