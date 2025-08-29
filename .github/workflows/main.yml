@@ -322,7 +322,7 @@ esxi_optimize() {
     echo "Applying ESXi 8 optimizations..."
     
     # CPU调度优化
-    for cpu in /sys/devices/system/cpu/cpu*/cpufreq; do
+    for cpu in /sys/devices/system/ccpu/cpu*/cpufreq; do
         echo "performance" > $cpu/scaling_governor 2>/dev/null || true
     done
     
