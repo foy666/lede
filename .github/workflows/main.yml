@@ -1,8 +1,9 @@
-name: OpenWrt x86 ESXi8.0 优化编译
+name: OpenWrt x86 ESXi8.0 直通优化编译
 
 on:
-  push;
-  workflow_dispatch:  # 允许手动触发
+  push:
+    branches: [ main ]  # 代码推送时触发
+  workflow_dispatch:  # 保留手动触发
 
 jobs:
   build:
@@ -24,56 +25,70 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: 应用ESXi优化配置
+      - name: 应用ESXi直通优化配置
         run: |
-          # 配置x86目标平台
+          # 基础平台配置
           echo "CONFIG_TARGET_x86=y" > .config
           echo "CONFIG_TARGET_x86_64=y" >> .config
           echo "CONFIG_TARGET_x86_64_Generic=y" >> .config
           
-          # 内核优化
-          echo "CONFIG_KERNEL_PATCHVER=6.12" >> .config  # 使用最新稳定内核
-          echo "CONFIG_KERNEL_DEVMEM=y" >> .config
-          echo "CONFIG_KERNEL_CPU_FREQ=y" >> .config
+          # 内核优化 - 直通场景专用
+          echo "CONFIG_KERNEL_PATCHVER=6.12" >> .config
           echo "CONFIG_KERNEL_CPU_FREQ_GOV_PERFORMANCE=y" >> .config
+          echo "CONFIG_KERNEL_PREEMPT_NONE=y" >> .config
           echo "CONFIG_KERNEL_HIGH_RES_TIMERS=y" >> .config
-          echo "CONFIG_KERNEL_PREEMPT_NONE=y" >> .config  # 降低延迟
+          echo "CONFIG_KERNEL_IOMMU_SUPPORT=y" >> .config  # 支持IOMMU直通
+          echo "CONFIG_KERNEL_INTEL_IOMMU=y" >> .config    # Intel IOMMU支持
+          echo "CONFIG_KERNEL_VFIO=y" >> .config          # VFIO设备直通框架
+          echo "CONFIG_KERNEL_VFIO_PCI=y" >> .config      # PCI设备直通支持
           
-          # 网络优化
-          echo "CONFIG_PACKAGE_kmod-vmxnet3=y" >> .config  # ESXi VMXNET3驱动
-          echo "CONFIG_PACKAGE_kmod-e1000e=y" >> .config  # 英特尔网卡驱动
-          echo "CONFIG_PACKAGE_kmod-igb=y" >> .config
-          echo "CONFIG_PACKAGE_kmod-tg3=y"
-          echo "CONFIG_PACKAGE_kmod-bnx2=y"
-          echo "CONFIG_PACKAGE_kmod-iavf=y"
-          echo "CONFIG_PACKAGE_kmod-mlx5-core=y"
-          echo "CONFIG_PACKAGE_kmod-ath10k-ct=y"
-          echo "CONFIG_PACKAGE_kmod-nft-offload=y" >> .config  # 硬件加速
-          echo "CONFIG_PACKAGE_flowoffload=y" >> .config
-          echo "CONFIG_PACKAGE_hwaccel=y" >> .config
+          # 直通网卡驱动增强
+          # Intel网卡优化 (常见直通型号)
+          echo "CONFIG_PACKAGE_kmod-igb=y" >> .config          # Intel千兆网卡
+          echo "CONFIG_PACKAGE_kmod-ixgbe=y" >> .config        # Intel万兆网卡
+          echo "CONFIG_PACKAGE_kmod-i40e=y" >> .config         # Intel 40G网卡
+          echo "CONFIG_PACKAGE_kmod-iavf=y" >> .config         # Intel虚拟化网卡
+          # 直通性能优化
+          echo "CONFIG_IGB_HW_VLAN=y" >> .config               # 硬件VLAN加速
+          echo "CONFIG_IXGBE_HW_VLAN=y" >> .config
+          echo "CONFIG_IGB_VMDQ=y" >> .config                  # 虚拟网卡队列
+          echo "CONFIG_IXGBE_VMDQ=y" >> .config
           
-          # 存储优化
-          echo "CONFIG_PACKAGE_kmod-scsi-vmw_pvscsi=y" >> .config  # ESXi SCSI驱动
+          # Broadcom直通网卡支持
+          echo "CONFIG_PACKAGE_kmod-tg3=y" >> .config
+          echo "CONFIG_PACKAGE_kmod-bnx2=y" >> .config
+          echo "CONFIG_PACKAGE_kmod-bnx2x=y" >> .config
+          
+          # 网络性能加速
+          echo "CONFIG_PACKAGE_kmod-nft-offload=y" >> .config  # NFT硬件卸载
+          echo "CONFIG_PACKAGE_flowoffload=y" >> .config       # 流量卸载
+          echo "CONFIG_PACKAGE_hwaccel=y" >> .config           # 硬件加速框架
+          echo "CONFIG_PACKAGE_kmod-ptp=y" >> .config          # 精确时间同步
+          echo "CONFIG_PACKAGE_kmod-dpdk=y" >> .config         # DPDK数据平面支持
+          
+          # 存储直通优化
+          echo "CONFIG_PACKAGE_kmod-vfio-scsi=y" >> .config    # SCSI设备直通
           echo "CONFIG_PACKAGE_kmod-ata-via=y" >> .config
           echo "CONFIG_PACKAGE_kmod-fs-ext4=y" >> .config
           echo "CONFIG_PACKAGE_kmod-fs-xfs=y" >> .config
           
-          # 系统工具
-          echo "CONFIG_PACKAGE_cpufrequtils=y" >> .config  # CPU频率控制
-          echo "CONFIG_PACKAGE_irqbalance=y" >> .config  # 中断平衡
-          echo "CONFIG_PACKAGE_lm-sensors=y" >> .config  # 硬件监控
-          echo "CONFIG_PACKAGE_nmon=y" >> .config  # 系统监控
-          echo "CONFIG_PACKAGE_openssh-server=y" >> .config
+          # 系统工具与监控
+          echo "CONFIG_PACKAGE_irqbalance=y" >> .config        # 中断平衡
+          echo "CONFIG_PACKAGE_msr-tools=y" >> .config         # CPU性能监控
+          echo "CONFIG_PACKAGE_ethtool=y" >> .config           # 网卡调试工具
+          echo "CONFIG_PACKAGE_hwloc=y" >> .config             # 硬件拓扑监控
+          echo "CONFIG_PACKAGE_lm-sensors=y" >> .config        # 传感器监控
           
-          # 优化编译选项
+          # 编译优化
           echo "CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3=y" >> .config
           echo "CONFIG_EXTRA_OPTIMIZATION=\"-march=nehalem -mtune=skylake -fomit-frame-pointer\"" >> .config
+          echo "CONFIG_KERNEL_MP_CPU_DEFAULT_NUM=8" >> .config # 多CPU核心优化
           
-          # 生成镜像格式 (ESXi支持的格式)
-          echo "CONFIG_TARGET_IMAGES_QCOW2=y" >> .config
+          # 镜像格式
           echo "CONFIG_TARGET_IMAGES_VMDK=y" >> .config
+          echo "CONFIG_TARGET_IMAGES_QCOW2=y" >> .config
           echo "CONFIG_GRUB_EFI_IMAGES=y" >> .config
-          echo "CONFIG_ISO_IMAGES=y" >> .config
+          echo "CONFIG_VMDK_IMG_SIZE=4096" >> .config          # 增大VMDK容量
 
           # 应用配置
           make defconfig
@@ -87,14 +102,14 @@ jobs:
 
       - name: 整理输出文件
         run: |
-          mkdir -p ./esxi-images
-          cp $(find ./bin/targets/ -name "*.vmdk") ./esxi-images/
-          cp $(find ./bin/targets/ -name "*.qcow2") ./esxi-images/
-          cp $(find ./bin/targets/ -name "*.iso") ./esxi-images/
-          cp $(find ./bin/targets/ -name "*.img.gz") ./esxi-images/
+          mkdir -p ./esxi-passthrough-images
+          cp $(find ./bin/targets/ -name "*.vmdk") ./esxi-passthrough-images/
+          cp $(find ./bin/targets/ -name "*.qcow2") ./esxi-passthrough-images/
+          cp $(find ./bin/targets/ -name "*.iso") ./esxi-passthrough-images/
+          cp $(find ./bin/targets/ -name "*.img.gz") ./esxi-passthrough-images/
 
-      - name: 上传ESXi专用镜像
+      - name: 上传优化镜像
         uses: actions/upload-artifact@v4
         with:
-          name: openwrt-x86-esxi8-optimized
-          path: ./esxi-images/
+          name: openwrt-x86-esxi8-passthrough-optimized
+          path: ./esxi-passthrough-images/
