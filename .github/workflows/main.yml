@@ -282,18 +282,19 @@ jobs:
           sha256sum * > sha256sums.txt
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3  # 使用v3版本避免下载问题:cite[2]
+        uses: actions/upload-artifact@v4  # 已升级到v4版本:cite[1]:cite[2]
         with:
           name: immortalwrt-x86-esxi-openclash-${{ needs.setup-environment.outputs.build_id }}
           path: immortalwrt-source/bin/targets/x86/64/artifacts/*
           retention-days: 7
+          if-no-files-found: error  # v4新增参数，可配置当没有匹配文件时的行为:cite[2]
 
   optimize-performance:
     needs: build-firmware
     runs-on: ubuntu-22.04
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v3  # 使用v3版本避免下载问题:cite[2]
+        uses: actions/download-artifact@v4  # 保持上传下载版本一致:cite[4]
         with:
           name: immortalwrt-x86-esxi-openclash-${{ needs.setup-environment.outputs.build_id }}
 
@@ -338,11 +339,11 @@ jobs:
           ## OpenClash Information:
           - Default control panel: Yacd (访问地址: http://路由器IP:9090)
           - Default password: 123456
-          - Recommended use Fake-IP mode for better performance:cite[7]:cite[10]
+          - Recommended use Fake-IP mode for better performance
           EOF
 
       - name: Upload build report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4  # 已升级到v4版本
         with:
           name: build-report-${{ needs.setup-environment.outputs.build_id }}
           path: build-report.md
@@ -353,9 +354,11 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4  # 保持上传下载版本一致:cite[4]
         with:
           path: artifacts
+          pattern: '*'
+          merge-multiple: true  # v4新增功能，合并多个artifact:cite[7]
 
       - name: Create release
         uses: softprops/action-gh-release@v1
@@ -370,7 +373,7 @@ jobs:
             ## OpenClash Default Settings:
             - Control Panel: Yacd (http://路由器IP:9090)
             - Default Password: 123456
-            - Recommended to use Fake-IP mode:cite[7]:cite[10]
+            - Recommended to use Fake-IP mode
             
             ## Important Notes:
             - For best performance, use Fake-IP mode in OpenClash
