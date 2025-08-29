@@ -315,94 +315,94 @@ jobs:
           
           # ESXi性能优化脚本
           cat > files/etc/init.d/esxi_optimize << 'EOF'
-#!/bin/sh /etc/rc.common
-START=99
-
-esxi_optimize() {
-    echo "Applying ESXi 8 optimizations..."
-    
-    # CPU调度优化
-    for cpu in /sys/devices/system/ccpu/cpu*/cpufreq; do
-        echo "performance" > $cpu/scaling_governor 2>/dev/null || true
-    done
-    
-    # 网络优化
-    for iface in $(ls /sys/class/net/ | grep -v lo); do
-        ethtool -K $iface tso on gso on gro on 2>/dev/null || true
-        ethtool -C $iface rx-usecs 8 tx-usecs 8 2>/dev/null || true
-    done
-    
-    # 应用sysctl配置
-    sysctl -p /etc/sysctl.d/esxi-optimize.conf
-    
-    # 启动KMS服务
-    /etc/init.d/vlmcsd enable
-    /etc/init.d/vlmcsd start
-    
-    echo "ESXi optimizations applied successfully"
-}
-
-start() { 
-    esxi_optimize
-}
-stop() { 
-    echo "Stopping ESXi optimizations"
-}
-EOF
+          #!/bin/sh /etc/rc.common
+          START=99
+          
+          esxi_optimize() {
+              echo "Applying ESXi 8 optimizations..."
+              
+              # CPU调度优化
+              for cpu in /sys/devices/system/ccpu/cpu*/cpufreq; do
+                  echo "performance" > $cpu/scaling_governor 2>/dev/null || true
+              done
+              
+              # 网络优化
+              for iface in $(ls /sys/class/net/ | grep -v lo); do
+                  ethtool -K $iface tso on gso on gro on 2>/dev/null || true
+                  ethtool -C $iface rx-usecs 8 tx-usecs 8 2>/dev/null || true
+              done
+              
+              # 应用sysctl配置
+              sysctl -p /etc/sysctl.d/esxi-optimize.conf
+              
+              # 启动KMS服务
+              /etc/init.d/vlmcsd enable
+              /etc/init.d/vlmcsd start
+              
+              echo "ESXi optimizations applied successfully"
+          }
+          
+          start() { 
+              esxi_optimize
+          }
+          stop() { 
+              echo "Stopping ESXi optimizations"
+          }
+          EOF
 
           # KMS自动配置脚本
           cat > files/usr/bin/setup-kms << 'EOF'
-#!/bin/sh
-echo "Setting up KMS Server..."
-echo "Configuring firewall rules..."
-
-# 配置防火墙允许KMS端口
-uci add firewall rule
-uci set firewall.@rule[-1].name='Allow-KMS'
-uci set firewall.@rule[-1].src='wan'
-uci set firewall.@rule[-1].proto='tcp'
-uci set firewall.@rule[-1].dest_port='1688'
-uci set firewall.@rule[-1].target='ACCEPT'
-
-# 配置KMS服务器
-uci set vlmcsd.@vlmcsd[0].enabled='1'
-uci set vlmcsd.@vlmcsd[0].interface='lan'
-uci set vlmcsd.@vlmcsd[0].port='1688'
-
-uci commit firewall
-uci commit vlmcsd
-
-echo "KMS Server configured successfully"
-echo "KMS Address: $(uci get network.lan.ipaddr):1688"
-echo "Usage: slmgr /skms $(uci get network.lan.ipaddr):1688"
-EOF
-
-          # 系统性能优化配置
-          cat > files/etc/sysctl.d/esxi-optimize.conf << 'EOF'
-# CPU调度优化
-kernel.sched_autogroup_enabled=0
-kernel.sched_migration_cost=5000000
-
-# 网络性能优化
-net.core.rmem_max=134217728
-net.core.wmem_max=134217728
-net.core.netdev_max_backlog=300000
-net.core.somaxconn=65535
-
-net.ipv4.tcp_rmem=4096 87380 134217728
-net.ipv4.tcp_wmem=4096 65536 134217728
-net.ipv4.tcp_congestion_control=bbr
-net.ipv4.tcp_fastopen=3
-net.ipv4.tcp_max_syn_backlog=65536
-net.ipv4.tcp_tw_reuse=1
-
-# 内存优化
-vm.swappiness=10
-vm.vfs_cache_pressure=50
-vm.dirty_ratio=10
-vm.dirty_background_ratio=5
-vm.overcommit_memory=1
-EOF
+          #!/bin/sh
+          echo "Setting up KMS Server..."
+          echo "Configuring firewall rules..."
+          
+          # 配置防火墙允许KMS端口
+          uci add firewall rule
+          uci set firewall.@rule[-1].name='Allow-KMS'
+          uci set firewall.@rule[-1].src='wan'
+          uci set firewall.@rule[-1].proto='tcp'
+          uci set firewall.@rule[-1].dest_port='1688'
+          uci set firewall.@rule[-1].target='ACCEPT'
+          
+          # 配置KMS服务器
+          uci set vlmcsd.@vlmcsd[0].enabled='1'
+          uci set vlmcsd.@vlmcsd[0].interface='lan'
+          uci set vlmcsd.@vlmcsd[0].port='1688'
+          
+          uci commit firewall
+          uci commit vlmcsd
+          
+          echo "KMS Server configured successfully"
+          echo "KMS Address: $(uci get network.lan.ipaddr):1688"
+          echo "Usage: slmgr /skms $(uci get network.lan.ipaddr):1688"
+          EOF
+          
+                    # 系统性能优化配置
+                    cat > files/etc/sysctl.d/esxi-optimize.conf << 'EOF'
+          # CPU调度优化
+          kernel.sched_autogroup_enabled=0
+          kernel.sched_migration_cost=5000000
+          
+          # 网络性能优化
+          net.core.rmem_max=134217728
+          net.core.wmem_max=134217728
+          net.core.netdev_max_backlog=300000
+          net.core.somaxconn=65535
+          
+          net.ipv4.tcp_rmem=4096 87380 134217728
+          net.ipv4.tcp_wmem=4096 65536 134217728
+          net.ipv4.tcp_congestion_control=bbr
+          net.ipv4.tcp_fastopen=3
+          net.ipv4.tcp_max_syn_backlog=65536
+          net.ipv4.tcp_tw_reuse=1
+          
+          # 内存优化
+          vm.swappiness=10
+          vm.vfs_cache_pressure=50
+          vm.dirty_ratio=10
+          vm.dirty_background_ratio=5
+          vm.overcommit_memory=1
+          EOF
 
           chmod +x files/etc/init.d/esxi_optimize
           chmod +x files/usr/bin/setup-kms
@@ -474,43 +474,43 @@ EOF
       - name: Create build report
         run: |
           cat > build-report.md << 'EOF'
-# ImmortalWRT ESXi 8 优化构建报告
-
-## 构建信息
-- **构建ID:** ${{ needs.environment-analysis.outputs.build_id }}
-- **系统资源:** ${{ needs.environment-analysis.outputs.system_info }}
-- **OpenClash版本:** ${{ needs.environment-analysis.outputs.openclash_version }}
-- **KMS版本:** ${{ needs.environment-analysis.outputs.kms_version }}
-- **优化级别:** ${{ env.CPU_OPTIMIZATION }}
-
-## 特性列表
-
-### 🚀 性能优化
-- 处理器多线程优化 (SMP/SMT)
-- 内存管理优化 (NUMA/Hugepages)
-- 网络性能优化 (BBR2/TCP优化)
-- ESXi 8专用驱动集成
-
-### 🔑 KMS激活服务
-- vlmcsd KMS服务器
-- Web管理界面
-- 自动防火墙配置
-- 支持Windows/Office激活
-
-### 🌐 网络功能
-- OpenClash科学上网
-- DNS over HTTPS
-- 多网卡驱动支持
-- 虚拟化网络优化
-
-## 使用指南
-
-### KMS激活命令
-```cmd
-# Windows激活
-slmgr /skms 192.168.1.1:1688
-slmgr /ato
-
-# Office激活
-cscript ospp.vbs /sethst:192.168.1.1:1688
-cscript ospp.vbs /act
+          # ImmortalWRT ESXi 8 优化构建报告
+          
+          ## 构建信息
+          - **构建ID:** ${{ needs.environment-analysis.outputs.build_id }}
+          - **系统资源:** ${{ needs.environment-analysis.outputs.system_info }}
+          - **OpenClash版本:** ${{ needs.environment-analysis.outputs.openclash_version }}
+          - **KMS版本:** ${{ needs.environment-analysis.outputs.kms_version }}
+          - **优化级别:** ${{ env.CPU_OPTIMIZATION }}
+          
+          ## 特性列表
+          
+          ### 🚀 性能优化
+          - 处理器多线程优化 (SMP/SMT)
+          - 内存管理优化 (NUMA/Hugepages)
+          - 网络性能优化 (BBR2/TCP优化)
+          - ESXi 8专用驱动集成
+          
+          ### 🔑 KMS激活服务
+          - vlmcsd KMS服务器
+          - Web管理界面
+          - 自动防火墙配置
+          - 支持Windows/Office激活
+          
+          ### 🌐 网络功能
+          - OpenClash科学上网
+          - DNS over HTTPS
+          - 多网卡驱动支持
+          - 虚拟化网络优化
+          
+          ## 使用指南
+          
+          ### KMS激活命令
+          ```cmd
+          # Windows激活
+          slmgr /skms 192.168.1.1:1688
+          slmgr /ato
+          
+          # Office激活
+          cscript ospp.vbs /sethst:192.168.1.1:1688
+          cscript ospp.vbs /act
