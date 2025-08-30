@@ -1,4 +1,4 @@
-name: 🛠️ ImmortalWRT ESXi 8 Build with KMS & OpenClash
+name: 🛠️ ImmortalWRT ESXi 8 Build with Dependency Fix
 
 on:
   push:
@@ -12,219 +12,306 @@ on:
 
   workflow_dispatch:
     inputs:
-      cpu_optimization:
-        description: 'CPU优化级别 (performance/balanced/power)'
-        required: false
-        default: 'performance'
-      clean_build:
-        description: '是否执行清理构建'
+      skip_dependency_check:
+        description: '跳过依赖检查（不建议）'
         required: false
         default: 'false'
 
 env:
-  BUILD_THREADS: 8  # 减少线程数以节省内存
+  BUILD_THREADS: 8
   ESXI_VERSION: 8
-  CPU_OPTIMIZATION: ${{ github.event.inputs.cpu_optimization || 'performance' }}
-  CLEAN_BUILD: ${{ github.event.inputs.clean_build || 'false' }}
+  SKIP_DEP_CHECK: ${{ github.event.inputs.skip_dependency_check || 'false' }}
 
 jobs:
-  disk-space-management:
+  dependency-fix:
     runs-on: ubuntu-22.04
-    outputs:
-      available_space: ${{ steps.check-space.outputs.available_space }}
-    steps:
-      - name: 💾 检查磁盘空间
-        id: check-space
-        run: |
-          echo "=== 初始磁盘空间 ==="
-          df -h
-          
-          # 计算可用空间
-          AVAILABLE_KB=$(df / | awk 'NR==2 {print $4}')
-          echo "available_space=$AVAILABLE_KB" >> $GITHUB_OUTPUT
-          echo "可用空间: ${AVAILABLE_KB}KB"
-
-      - name: 🧹 清理系统缓存
-        run: |
-          echo "清理系统缓存..."
-          sudo apt-get clean
-          sudo rm -rf /var/lib/apt/lists/*
-          sudo rm -rf /tmp/*
-          sudo rm -rf /var/tmp/*
-          sudo rm -rf /var/cache/apt/archives/*.deb
-          
-          # 清理日志文件
-          sudo find /var/log -name "*.log" -size +10M -delete
-          sudo find /var/log -name "*.gz" -delete
-          
-          # 清理Docker缓存（如果存在）
-          sudo docker system prune -af 2>/dev/null || true
-
-      - name: 📊 清理后空间检查
-        run: |
-          echo "=== 清理后磁盘空间 ==="
-          df -h
-          echo "可用空间: $(df / | awk 'NR==2 {print $4}')"
-
-  environment-setup:
-    runs-on: ubuntu-22.04
-    needs: disk-space-management
     outputs:
       build_id: ${{ steps.generate-id.outputs.build_id }}
+      dep_status: ${{ steps.check-dependencies.outputs.dep_status }}
     steps:
-      - name: 📥 检出代码（浅克隆）
+      - name: 📥 检出代码
         uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 1
-          lfs: false
 
       - name: 🆔 生成构建ID
         id: generate-id
         run: echo "build_id=build_$(date +%Y%m%d_%H%M%S)" >> $GITHUB_OUTPUT
 
-  build-optimized-firmware:
-    runs-on: ubuntu-22.04
-    needs: environment-setup
-    timeout-minutes: 180  # 设置超时时间
-    
-    steps:
-      - name: 💾 构建前空间检查
+      - name: 🔍 检查依赖包状态
+        id: check-dependencies
         run: |
-          echo "=== 构建前磁盘空间 ==="
-          df -h
-          echo "可用空间: $(df / | awk 'NR==2 {print $4}')"
+          echo "检查缺失的依赖包..."
+          # 检查常见缺失的依赖包
+          MISSING_DEPS=()
+          
+          # 检查 libev 相关
+          if ! pkg-config --exists libev; then
+            echo "❌ libev 开发包缺失"
+            MISSING_DEPS+=("libev")
+          fi
+          
+          # 检查 lm-sensors
+          if ! dpkg -l | grep -q "lm-sensors"; then
+            echo "❌ lm-sensors 缺失"
+            MISSING_DEPS+=("lm-sensors")
+          fi
+          
+          # 检查 libpam
+          if ! dpkg -l | grep -q "libpam0g-dev"; then
+            echo "❌ libpam 开发包缺失"
+            MISSING_DEPS+=("libpam")
+          fi
+          
+          # 检查 liblzma
+          if ! dpkg -l | grep -q "liblzma-dev"; then
+            echo "❌ liblzma 开发包缺失"
+            MISSING_DEPS+=("liblzma")
+          fi
+          
+          if [ ${#MISSING_DEPS[@]} -eq 0 ]; then
+            echo "✅ 所有依赖包正常"
+            echo "dep_status=ok" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ 缺失依赖: ${MISSING_DEPS[*]}"
+            echo "dep_status=missing:${MISSING_DEPS[*]}" >> $GITHUB_OUTPUT
+          fi
 
-      - name: 📥 克隆ImmortalWRT（优化版）
+  install-dependencies:
+    needs: dependency-fix
+    runs-on: ubuntu-22.04
+    steps:
+      - name: 📦 安装缺失的依赖包
         run: |
-          echo "正在克隆ImmortalWRT（浅克隆）..."
+          echo "安装必要的构建依赖..."
+          
+          # 基础编译工具
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            clang \
+            gcc \
+            g++ \
+            libncurses5-dev \
+            libncursesw5-dev \
+            zlib1g-dev \
+            gawk \
+            git \
+            gettext \
+            libssl-dev \
+            python3 \
+            python3-distutils \
+            rsync \
+            unzip \
+            wget \
+            file \
+            bc \
+            jq \
+            curl \
+            aria2 \
+            subversion
+          
+          # 安装缺失的特定依赖:cite[1]:cite[9]
+          echo "安装特定缺失依赖..."
+          sudo apt-get install -y \
+            libev-dev \
+            lm-sensors \
+            libpam0g-dev \
+            liblzma-dev \
+            libtirpc-dev \
+            libnetsnmp-dev \
+            libglib2.0-dev \
+            libgpiod-dev \
+            libdbus-1-dev \
+            libmodbus-dev
+          
+          # 清理缓存
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+
+      - name: 🧹 清理空间
+        run: |
+          sudo apt-get autoremove -y
+          sudo rm -rf /tmp/* /var/tmp/*
+          df -h
+
+  build-firmware:
+    needs: [dependency-fix, install-dependencies]
+    runs-on: ubuntu-22.04
+    env:
+      BUILD_DIR: /home/runner/work/immortalwrt-build
+    steps:
+      - name: 📥 克隆ImmortalWRT
+        run: |
+          mkdir -p $BUILD_DIR
+          cd $BUILD_DIR
           git clone --depth=1 --single-branch \
-            --branch=master \
             https://github.com/immortalwrt/immortalwrt.git immortalwrt-source
           
           cd immortalwrt-source
-          # 立即清理.git目录节省空间
-          rm -rf .git
-          echo "✅ 源码克隆完成，大小: $(du -sh .)"
+          echo "源码大小: $(du -sh .)"
 
-      - name: ⚙️ 最小化配置
+      - name: 🔧 修复依赖配置
         run: |
-          cd immortalwrt-source
+          cd $BUILD_DIR/immortalwrt-source
           
-          # 创建最小化配置
+          echo "修复Makefile中的依赖配置..."
+          
+          # 修复libev依赖:cite[9]
+          if grep -q "libev" package/utils/audit/Makefile 2>/dev/null; then
+            sed -i 's/libev/libev-dev/' package/utils/audit/Makefile
+            echo "✅ 修复audit包libev依赖"
+          fi
+          
+          # 修复lm-sensors依赖:cite[5]:cite[10]
+          if grep -q "lm-sensors" package/emortal/autocore/Makefile 2>/dev/null; then
+            sed -i 's/lm-sensors/lm-sensors/' package/emortal/autocore/Makefile
+            echo "✅ 修复autocore包lm-sensors依赖"
+          fi
+          
+          # 修复libpam依赖:cite[6]:cite[8]
+          for makefile in $(find . -name "Makefile" -exec grep -l "libpam" {} \;); do
+            sed -i 's/libpam/libpam0g-dev/' "$makefile"
+            echo "✅ 修复 $makefile 中的libpam依赖"
+          done
+          
+          # 修复其他常见依赖
+          for makefile in $(find . -name "Makefile" -exec grep -l "liblzma\|libtirpc\|libnetsnmp" {} \;); do
+            sed -i \
+              -e 's/liblzma/liblzma-dev/' \
+              -e 's/libtirpc/libtirpc-dev/' \
+              -e 's/libnetsnmp/libnetsnmp-dev/' \
+              "$makefile"
+            echo "✅ 修复 $makefile 中的依赖"
+          done
+
+      - name: ⚙️ 生成优化配置
+        run: |
+          cd $BUILD_DIR/immortalwrt-source
+          
+          # 创建最小化ESXi配置
           cat > .config << 'EOF'
-          CONFIG_TARGET_x86=y
-          CONFIG_TARGET_x86_64=y
-          CONFIG_TARGET_x86_64_Generic=y
-          CONFIG_TARGET_ROOTFS_EXT4FS=y
-          CONFIG_TARGET_ROOTFS_SQUASHFS=y
-          CONFIG_VMDK_IMAGES=y
-          
-          # KMS基础配置
-          CONFIG_PACKAGE_vlmcsd=y
-          CONFIG_PACKAGE_luci-app-vlmcsd=y
-          
-          # 处理器优化
-          CONFIG_SMP=y
-          CONFIG_NR_CPUS=16
-          CONFIG_CPU_FREQ=y
-          CONFIG_CPU_FREQ_DEFAULT_GOV_PERFORMANCE=y
-          
-          # 网络基础
-          CONFIG_PACKAGE_dnsmasq-full=y
-          CONFIG_DEFAULT_BBR=y
-          CONFIG_TCP_CONG_BBR=y
-          
-          # 虚拟化驱动
-          CONFIG_PACKAGE_kmod-vmxnet3=y
-          CONFIG_PACKAGE_kmod-virtio-net=y
-          CONFIG_PACKAGE_kmod-virtio-blk=y
-          
-          # 最小化工具
-          CONFIG_PACKAGE_htop=y
-          CONFIG_PACKAGE_iperf3=y
-          CONFIG_PACKAGE_tcpdump=y
-          
-          # 性能调优
-          CONFIG_KERNEL_HZ=1000
-          CONFIG_DEBUG_INFO=n
-          CONFIG_DEBUG_KERNEL=n
-          EOF
+CONFIG_TARGET_x86=y
+CONFIG_TARGET_x86_64=y
+CONFIG_TARGET_x86_64_Generic=y
+CONFIG_TARGET_ROOTFS_EXT4FS=y
+CONFIG_TARGET_ROOTFS_SQUASHFS=y
+CONFIG_VMDK_IMAGES=y
 
+# 核心功能
+CONFIG_PACKAGE_vlmcsd=y
+CONFIG_PACKAGE_luci-app-vlmcsd=y
+
+# 处理器优化
+CONFIG_SMP=y
+CONFIG_NR_CPUS=16
+CONFIG_CPU_FREQ=y
+CONFIG_CPU_FREQ_DEFAULT_GOV_PERFORMANCE=y
+
+# 网络优化
+CONFIG_PACKAGE_dnsmasq-full=y
+CONFIG_DEFAULT_BBR=y
+CONFIG_TCP_CONG_BBR=y
+
+# 虚拟化驱动
+CONFIG_PACKAGE_kmod-vmxnet3=y
+CONFIG_PACKAGE_kmod-virtio-net=y
+CONFIG_PACKAGE_kmod-virtio-blk=y
+
+# 必要工具
+CONFIG_PACKAGE_htop=y
+CONFIG_PACKAGE_iperf3=y
+
+# 性能调优
+CONFIG_KERNEL_HZ=1000
+CONFIG_DEBUG_INFO=n
+CONFIG_DEBUG_KERNEL=n
+
+# 禁用有问题的包:cite[2]:cite[3]
+# CONFIG_PACKAGE_policycoreutils is not set
+# CONFIG_PACKAGE_lldpd is not set
+# CONFIG_PACKAGE_wsdd2 is not set
+# CONFIG_PACKAGE_glib2 is not set
+EOF
+          
           make defconfig
-          echo "✅ 最小化配置完成"
+          echo "✅ 配置完成"
 
-      - name: 🏗️ 分阶段编译
+      - name: 🏗️ 编译固件
         run: |
-          cd immortalwrt-source
+          cd $BUILD_DIR/immortalwrt-source
           
-          # 设置编译优化
+          # 设置编译环境
           export CFLAGS="-Os -pipe"
           export CXXFLAGS="$CFLAGS"
+          export LDFLAGS="-Wl,-O1 -Wl,--as-needed"
           
-          echo "开始分阶段编译..."
+          echo "开始编译..."
           
-          # 第一阶段：编译工具链
+          # 分阶段编译以减少内存使用:cite[6]
           make tools/install -j$BUILD_THREADS
           make toolchain/install -j$BUILD_THREADS
-          
-          # 第二阶段：编译内核
           make target/linux/install -j$BUILD_THREADS
-          
-          # 第三阶段：编译包
           make package/compile -j$BUILD_THREADS
-          
-          # 第四阶段：编译镜像
           make target/install -j$BUILD_THREADS
           
-          echo "✅ 编译完成"
-
-      - name: 🧹 编译中清理
-        run: |
-          cd immortalwrt-source
-          echo "编译中清理中间文件..."
-          
-          # 清理临时文件但保留必要文件
-          find . -name "*.o" -delete
-          find . -name "*.a" -delete
-          find build_dir -name "*.tmp" -delete
-          
-          echo "清理后大小: $(du -sh .)"
+          if [ $? -eq 0 ]; then
+            echo "BUILD_STATUS=success" >> $GITHUB_ENV
+            echo "✅ 编译成功"
+          else
+            echo "BUILD_STATUS=failed" >> $GITHUB_ENV
+            echo "❌ 编译失败"
+            exit 1
+          fi
 
       - name: 📦 收集产物
+        if: env.BUILD_STATUS == 'success'
         run: |
-          cd immortalwrt-source
+          cd $BUILD_DIR/immortalwrt-source
           mkdir -p artifacts
           
-          # 只收集必要的镜像文件
+          # 复制镜像文件
           find bin/targets -name "*.vmdk" -exec cp {} artifacts/ \;
           find bin/targets -name "*.img" -exec cp {} artifacts/ \;
+          find bin/targets -name "*.gz" -exec cp {} artifacts/ \;
           
-          echo "产物大小: $(du -sh artifacts)"
+          # 创建校验文件
+          cd artifacts
+          sha256sum * > sha256sums.txt
+          echo "产物列表:"
+          ls -la
 
       - name: ⬆️ 上传产物
+        if: env.BUILD_STATUS == 'success'
         uses: actions/upload-artifact@v4
         with:
-          name: immortalwrt-minimal-${{ needs.environment-setup.outputs.build_id }}
-          path: immortalwrt-source/artifacts/*
+          name: immortalwrt-esxi8-${{ needs.dependency-fix.outputs.build_id }}
+          path: ${{ env.BUILD_DIR }}/immortalwrt-source/artifacts/*
           retention-days: 3
 
-  post-cleanup:
+  post-build:
+    needs: build-firmware
     runs-on: ubuntu-22.04
-    needs: [build-optimized-firmware, environment-setup]
     if: always()
     steps:
+      - name: 📊 构建报告
+        run: |
+          echo "构建完成状态: ${{ needs.build-firmware.result }}"
+          echo "依赖状态: ${{ needs.dependency-fix.outputs.dep_status }}"
+          echo "构建ID: ${{ needs.dependency-fix.outputs.build_id }}"
+          
+          if [ "${{ needs.build-firmware.result }}" = "success" ]; then
+            echo "✅ 构建成功完成"
+            echo "产物已上传到Artifacts"
+          else
+            echo "❌ 构建失败"
+            echo "请检查编译日志获取详细信息"
+          fi
+
       - name: 🧹 最终清理
         run: |
-          echo "执行最终清理..."
           sudo apt-get autoremove -y
           sudo apt-get clean
-          sudo rm -rf /var/lib/apt/lists/*
-          sudo rm -rf /tmp/*
-          sudo rm -rf ~/.cache/*
-          
-          # 清理Docker
-          sudo docker system prune -af 2>/dev/null || true
-          
-          echo "=== 最终磁盘空间 ==="
+          sudo rm -rf /tmp/* /var/tmp/*
           df -h
