@@ -8,6 +8,10 @@
 name: OpenWrt-CI
 
 on:
+  push:
+      branches:
+        - main
+        - master
   schedule:
     - cron: 0 20 * * *
 
@@ -61,6 +65,47 @@ jobs:
           sed -i 's/#src-git helloworld/src-git helloworld/g' ./feeds.conf.default
           ./scripts/feeds update -a
           ./scripts/feeds install -a
+
+
+      - name: Configure for ESXi optimization
+        run: |
+          cat >> .config <<EOF
+          CONFIG_TARGET_x86=y
+          CONFIG_TARGET_x86_64=y
+          CONFIG_TARGET_x86_64_DEVICE_generic=y
+          CONFIG_HAS_FPU=y
+          CONFIG_KERNEL_PERF_EVENTS=y
+          CONFIG_KERNEL_KVM=y
+          CONFIG_KERNEL_KVM_INTEL=y
+          CONFIG_KERNEL_KVM_AMD=y
+          CONFIG_KERNEL_VIRTIO=y
+          CONFIG_KERNEL_VIRTIO_NET=y
+          CONFIG_KERNEL_VIRTIO_PCI=y
+          CONFIG_KERNEL_VIRTIO_BLK=y
+          CONFIG_PACKAGE_kmod-vmxnet3=y
+          CONFIG_PACKAGE_kmod-e1000e=y
+          CONFIG_PACKAGE_kmod-igc=y
+          CONFIG_PACKAGE_kmod-r8125=y
+          CONFIG_PACKAGE_kmod-tcp-bbr=y
+          CONFIG_TARGET_OPTIMIZATION='-march=x86-64-v3 -mtune=generic -O3 -pipe -fno-caller-saves -fno-plt'
+          CONFIG_TARGET_ROOTFS_EXT4FS=y
+          CONFIG_TARGET_ROOTFS_SQUASHFS=y
+          CONFIG_TARGET_IMAGES_GZIP=y
+          CONFIG_PACKAGE_libiwinfo-lua=y
+          CONFIG_PACKAGE_libnetwork=y
+          CONFIG_PACKAGE_luci=y
+          CONFIG_PACKAGE_luci-app-openclash=y
+          CONFIG_PACKAGE_luci-app-upnp=y
+          CONFIG_PACKAGE_luci-app-wireguard=y
+          CONFIG_PACKAGE_luci-theme-material=y
+          CONFIG_PACKAGE_wget-ssl=y
+          CONFIG_PACKAGE_curl=y
+          CONFIG_PACKAGE_iperf3=y
+          CONFIG_PACKAGE_tcpdump=y
+          CONFIG_PACKAGE_htop=y
+          CONFIG_PACKAGE_ethtool=y
+          EOF
+  
 
       - name: Generate configuration file
         run: make defconfig
