@@ -9,7 +9,6 @@ processing. This helps better spread the load across idle CPUs.
 
 Signed-off-by: Felix Fietkau <nbd@nbd.name>
 ---
-
 --- a/include/linux/netdevice.h
 +++ b/include/linux/netdevice.h
 @@ -504,6 +504,7 @@ static inline bool napi_complete(struct
@@ -20,7 +19,7 @@ Signed-off-by: Felix Fietkau <nbd@nbd.name>
  
  /**
   *	napi_disable - prevent NAPI from scheduling
-@@ -3379,6 +3380,7 @@ struct softnet_data {
+@@ -3395,6 +3396,7 @@ struct softnet_data {
  	unsigned int		processed;
  	unsigned int		time_squeeze;
  	unsigned int		received_rps;
@@ -159,8 +158,8 @@ Signed-off-by: Felix Fietkau <nbd@nbd.name>
 +	return err;
 +}
 +
- void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
- 		    int (*poll)(struct napi_struct *, int), int weight)
+ void netif_napi_add_weight(struct net_device *dev, struct napi_struct *napi,
+ 			   int (*poll)(struct napi_struct *, int), int weight)
  {
 @@ -11466,6 +11541,9 @@ static int dev_cpu_dead(unsigned int old
  	raise_softirq_irqoff(NET_TX_SOFTIRQ);

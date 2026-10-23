@@ -135,18 +135,6 @@ Cc: Vlastimil Babka <vbabka@suse.cz>
 Cc: Will Deacon <will@kernel.org>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
- fs/exec.c                  |    2 +
- include/linux/memcontrol.h |    5 +
- include/linux/mm_types.h   |   76 +++
- include/linux/mmzone.h     |   56 +-
- include/linux/swap.h       |    4 +
- kernel/exit.c              |    1 +
- kernel/fork.c              |    9 +
- kernel/sched/core.c        |    1 +
- mm/memcontrol.c            |   25 +
- mm/vmscan.c                | 1010 +++++++++++++++++++++++++++++++++++-
- 10 files changed, 1172 insertions(+), 17 deletions(-)
-
 --- a/fs/exec.c
 +++ b/fs/exec.c
 @@ -1012,6 +1012,7 @@ static int exec_mmap(struct mm_struct *m
@@ -455,7 +443,7 @@ Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
  static int seq_puts_memcg_tunable(struct seq_file *m, unsigned long value)
  {
  	if (value == PAGE_COUNTER_MAX)
-@@ -6579,6 +6603,7 @@ struct cgroup_subsys memory_cgrp_subsys
+@@ -6585,6 +6609,7 @@ struct cgroup_subsys memory_cgrp_subsys
  	.css_reset = mem_cgroup_css_reset,
  	.css_rstat_flush = mem_cgroup_css_rstat_flush,
  	.can_attach = mem_cgroup_can_attach,

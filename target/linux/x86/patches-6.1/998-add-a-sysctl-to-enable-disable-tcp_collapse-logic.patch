@@ -30,13 +30,6 @@ time it takes to perform the collapse logic when the receive
 queue is large and full, while preserving existing behavior
 and performance for all other cases.
 ---
- include/net/netns/ipv4.h   |  1 +
- include/trace/events/tcp.h |  7 +++++++
- net/ipv4/sysctl_net_ipv4.c |  7 +++++++
- net/ipv4/tcp_input.c       | 36 ++++++++++++++++++++++++++++++++++++
- net/ipv4/tcp_ipv4.c        |  2 ++
- 5 files changed, 53 insertions(+)
-
 --- a/include/net/netns/ipv4.h
 +++ b/include/net/netns/ipv4.h
 @@ -192,6 +192,7 @@ struct netns_ipv4 {
@@ -65,7 +58,7 @@ and performance for all other cases.
  	TP_PROTO(const struct sock *sk, const struct request_sock *req),
 --- a/net/ipv4/sysctl_net_ipv4.c
 +++ b/net/ipv4/sysctl_net_ipv4.c
-@@ -1399,6 +1399,13 @@ static struct ctl_table ipv4_net_table[]
+@@ -1401,6 +1401,13 @@ static struct ctl_table ipv4_net_table[]
  		.extra1		= SYSCTL_ZERO,
  		.extra2		= SYSCTL_ONE,
  	},
@@ -140,7 +133,7 @@ and performance for all other cases.
  	 * and hopefully then we'll have sufficient space.
 --- a/net/ipv4/tcp_ipv4.c
 +++ b/net/ipv4/tcp_ipv4.c
-@@ -3383,6 +3383,8 @@ static int __net_init tcp_sk_init(struct
+@@ -3390,6 +3390,8 @@ static int __net_init tcp_sk_init(struct
  
  	net->ipv4.sysctl_tcp_shrink_window = 0;
  

@@ -9,17 +9,9 @@ packets.
 
 Signed-off-by: Felix Fietkau <nbd@nbd.name>
 ---
- include/linux/netdevice.h | 11 +++++++++++
- include/linux/skbuff.h    | 14 ++++----------
- net/Kconfig               |  6 ++++++
- net/core/dev.c            | 20 +++++++++++++++-----
- net/core/skbuff.c         | 17 +++++++++++++++++
- net/ethernet/eth.c        |  6 ++++++
- 6 files changed, 59 insertions(+), 15 deletions(-)
-
 --- a/include/linux/netdevice.h
 +++ b/include/linux/netdevice.h
-@@ -1762,6 +1762,7 @@ enum netdev_priv_flags {
+@@ -1772,6 +1772,7 @@ enum netdev_priv_flags {
  	IFF_TX_SKB_NO_LINEAR		= BIT_ULL(31),
  	IFF_CHANGE_PROTO_DOWN		= BIT_ULL(32),
  	IFF_SEE_ALL_HWTSTAMP_REQUESTS	= BIT_ULL(33),
@@ -27,7 +19,7 @@ Signed-off-by: Felix Fietkau <nbd@nbd.name>
  };
  
  #define IFF_802_1Q_VLAN			IFF_802_1Q_VLAN
-@@ -1795,6 +1796,7 @@ enum netdev_priv_flags {
+@@ -1805,6 +1806,7 @@ enum netdev_priv_flags {
  #define IFF_FAILOVER_SLAVE		IFF_FAILOVER_SLAVE
  #define IFF_L3MDEV_RX_HANDLER		IFF_L3MDEV_RX_HANDLER
  #define IFF_TX_SKB_NO_LINEAR		IFF_TX_SKB_NO_LINEAR
@@ -35,7 +27,7 @@ Signed-off-by: Felix Fietkau <nbd@nbd.name>
  
  /* Specifies the type of the struct net_device::ml_priv pointer */
  enum netdev_ml_priv_type {
-@@ -2187,6 +2189,11 @@ struct net_device {
+@@ -2206,6 +2208,11 @@ struct net_device {
  	const struct tlsdev_ops *tlsdev_ops;
  #endif
  
@@ -47,7 +39,7 @@ Signed-off-by: Felix Fietkau <nbd@nbd.name>
  	const struct header_ops *header_ops;
  
  	unsigned char		operstate;
-@@ -2260,6 +2267,10 @@ struct net_device {
+@@ -2279,6 +2286,10 @@ struct net_device {
  	struct mctp_dev __rcu	*mctp_ptr;
  #endif
  

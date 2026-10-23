@@ -441,9 +441,6 @@ define Device/cmcc_rax3000me-emmc
   DEVICE_PACKAGES := kmod-mt7981-firmware mt7981-wo-firmware kmod-usb3 f2fsck mkf2fs
   KERNEL := kernel-bin | lzma | fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb
   KERNEL_INITRAMFS := kernel-bin | lzma | fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
-  ARTIFACTS := emmc-preloader.bin emmc-bl31-uboot.fip
-  ARTIFACT/emmc-preloader.bin := mt7981-bl2 emmc-ddr3-1866
-  ARTIFACT/emmc-bl31-uboot.fip := mt7981-bl31-uboot cmcc_rax3000me-emmc
   IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
 endef
 TARGET_DEVICES += cmcc_rax3000me-emmc
@@ -460,11 +457,6 @@ define Device/cmcc_rax3000me-nand
   PAGESIZE := 2048
   IMAGE_SIZE := 116736k
   KERNEL_IN_UBI := 1
-  ARTIFACTS := nand-ddr3-preloader.bin nand-ddr3-bl31-uboot.fip nand-ddr4-preloader.bin nand-ddr4-bl31-uboot.fip
-  ARTIFACT/nand-ddr3-preloader.bin := mt7981-bl2 spim-nand-ddr3-1866
-  ARTIFACT/nand-ddr3-bl31-uboot.fip := mt7981-bl31-uboot cmcc_rax3000me-nand-ddr3
-  ARTIFACT/nand-ddr4-preloader.bin := mt7981-bl2 spim-nand-ddr4
-  ARTIFACT/nand-ddr4-bl31-uboot.fip := mt7981-bl31-uboot cmcc_rax3000me-nand-ddr4
   IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
 endef
 TARGET_DEVICES += cmcc_rax3000me-nand
@@ -499,6 +491,23 @@ define Device/cmcc_xr30-nand
   IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
 endef
 TARGET_DEVICES += cmcc_xr30-nand
+
+define Device/clx_s20l
+  DEVICE_VENDOR := CLX
+  DEVICE_MODEL := S20L
+  DEVICE_DTS := mt7986a-clx-s20l
+  DEVICE_DTS_DIR := ../dts
+  DEVICE_DTS_LOADADDR := 0x47000000
+  DEVICE_PACKAGES := automount e2fsprogs f2fsck mkf2fs kmod-usb3 \
+	kmod-mt7986-firmware mt7986-wo-firmware
+  IMAGES := sysupgrade.bin
+  KERNEL := kernel-bin | lzma | \
+	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb
+  KERNEL_INITRAMFS := kernel-bin | lzma | \
+	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+endef
+TARGET_DEVICES += clx_s20l
 
 define Device/cudy_tr3000-256mb-v1
   DEVICE_VENDOR := Cudy
@@ -1122,3 +1131,21 @@ define Device/xiaomi_redmi-router-ax6000
   IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
 endef
 TARGET_DEVICES += xiaomi_redmi-router-ax6000
+
+define Device/xiaomi_redmi-router-ax6000-stock
+  DEVICE_VENDOR := Xiaomi
+  DEVICE_MODEL := Redmi Router AX6000
+  DEVICE_VARIANT := (stock layout)
+  DEVICE_DTS := mt7986a-xiaomi-redmi-router-ax6000-stock
+  DEVICE_DTS_DIR := ../dts
+  DEVICE_PACKAGES := kmod-leds-ws2812b kmod-mt7986-firmware mt7986-wo-firmware
+  UBINIZE_OPTS := -E 5
+  BLOCKSIZE := 128k
+  PAGESIZE := 2048
+ifneq ($(CONFIG_TARGET_ROOTFS_INITRAMFS),)
+  ARTIFACTS := initramfs-factory.ubi
+  ARTIFACT/initramfs-factory.ubi := append-image-stage initramfs-kernel.bin | ubinize-kernel
+endif
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+endef
+TARGET_DEVICES += xiaomi_redmi-router-ax6000-stock
